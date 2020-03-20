@@ -13,12 +13,12 @@
 
 ## Functions
   # MLMR function with common parameters, for simplicity
-  mlmr <- function(dat, variable){
+  mlmr <- function(dat, variable, corr){
           rma.mv(yi, 
                  vi,
                  mods = ~ variable - 1,
                  random = list(~ 1 | obs, ~1 | study_id, ~1 | species),
-                 R = list(species = phylo),
+                 R = list(species = corr),
                  method = "REML", 
                  data = dat)
   }
@@ -26,6 +26,10 @@
 ## Data
   coldat <- read.csv("../data/data.csv", stringsAsFactors = FALSE)
   tree <- read.tree("../data/tree.tre")
+  tree_aves <- read.tree("../data/tree_aves.tre")
+  tree_reptilia <- read.tree("../data/tree_reptilia.tre")
+  tree_arachnida <- read.tree("../data/tree_arachnida.tre")
+  tree_insecta <- read.tree("../data/tree_insecta.tre")
 
 ## Prep phylogenetic data
   # Replate some synonymous species names
@@ -33,15 +37,23 @@
   coldat[which(coldat$species == 'Cyanistes_caeruleus'), ]$species <- "Cyanistes_caeruleus_caeruleus"
   
   # Compute correlation matrix
-  phylo <- vcv(tree, corr = TRUE) 
+  phylo <- vcv(tree, corr = TRUE)
+  phylo_aves <- vcv(tree_aves, corr = TRUE)
+  phylo_reptilia <- vcv(tree_reptilia, corr = TRUE)
+  phylo_arachnida <- vcv(tree_arachnida, corr = TRUE)
+  phylo_insecta <- vcv(tree_insecta, corr = TRUE)
   
   # Plot tree
   png('../figs/fig_phylogeny.png', width = 21, height = 21, units = 'cm', res = 300)
     plot(tree, cex = .8, label.offset = .1, no.margin = TRUE)
   dev.off()
 
-## Estimate and subset effect sizes
+## Estimate effect sizes
   coldat <- escalc("ZCOR", ri = r, ni = n, data = coldat, append = TRUE)
+  coldat_aves <- coldat[coldat$class %in% 'aves',]  # birds only
+  coldat_insecta <- coldat[coldat$class %in% 'insecta',]
+  coldat_reptilia <- coldat[coldat$class %in% 'reptilia',]
+  coldat_arachnida <- coldat[coldat$class %in% 'arachnida',]
   
 ## Search strategy and publication bias
   
@@ -95,36 +107,78 @@
     mutate(freq = n / sum(n))
   unique(coldat$species)  # Species list
   
-## Moderators 
+## Moderators - all taxa
   # Quality
-  m_quality <- mlmr(coldat, coldat$quality_measure)
+  m_quality <- mlmr(coldat, coldat$quality_measure, phylo)
   summary(m_quality)
   I2(m_quality, coldat$vi)
   
   # Experimental vs observational
-  m_exp <- mlmr(coldat, coldat$exp_obs)
+  m_exp <- mlmr(coldat, coldat$exp_obs, phylo)
   summary(m_exp)
   I2(m_exp, coldat$vi)
   
   # Colour variable
-  m_var <- mlmr(coldat, coldat$col_var)
+  m_var <- mlmr(coldat, coldat$col_var, phylo)
   summary(m_var)
   I2(m_var, coldat$vi)
   
   # Sex
-  m_sex <- mlmr(coldat, coldat$sex)
+  m_sex <- mlmr(coldat, coldat$sex, phylo)
   summary(m_sex)
   I2(m_sex, coldat$vi)
+  
+  # Class
+  m_class <- mlmr(coldat, coldat$class, phylo)
+  summary(m_class)
+  I2(m_class, coldat$vi)
 
   # Iridescence
-  m_irid <- mlmr(coldat, coldat$iridescent)  
+  m_irid <- mlmr(coldat, coldat$iridescent, phylo)  
   summary(m_irid)
   I2(m_irid, coldat$vi)
   
   # Control present
-  m_control <- mlmr(coldat, coldat$control)
+  m_control <- mlmr(coldat, coldat$control, phylo)
   summary(m_control)
   I2(m_control, coldat$vi)
+  
+  ## Class-specific moderators (sensitivity analysis)
+  ## Birds
+  # Quality
+  m_quality_aves <- mlmr(coldat_aves, coldat_aves$quality_measure, phylo_aves)
+  summary(m_quality_aves)
+  
+  # Colour variable
+  m_var_aves <- mlmr(coldat_aves, coldat_aves$col_var, phylo_aves)
+  summary(m_var_aves)
+  
+  ## Insects
+  # Quality
+  m_quality_insecta <- mlmr(coldat_insecta, coldat_insecta$quality_measure, phylo_insecta)
+  summary(m_quality_insecta)
+  
+  # Colour variable
+  m_var_insecta <- mlmr(coldat_insecta, coldat_insecta$col_var, phylo_insecta)
+  summary(m_var_insecta)
+  
+  ## Arachnids
+  # Quality
+  m_quality_arachnida <- mlmr(coldat_arachnida, coldat_arachnida$quality_measure, phylo_arachnida)
+  summary(m_quality_arachnida)
+  
+  # Colour variable
+  m_var_arachnida <- mlmr(coldat_arachnida, coldat_arachnida$col_var, phylo_arachnida)
+  summary(m_var_arachnida)
+  
+  ## Reptilia
+  # Quality
+  m_quality_reptilia <- mlmr(coldat_reptilia, coldat_reptilia$quality_measure, phylo_reptilia)
+  summary(m_quality_reptilia)
+  
+  # Colour variable
+  m_var_reptilia <- mlmr(coldat_reptilia, coldat_reptilia$col_var, phylo_reptilia)
+  summary(m_var_reptilia)
   
 ## Plotting
   # Tidy & compile directional effects
